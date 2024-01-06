@@ -16,83 +16,84 @@ namespace TechCareerBootcamp_Exam1.Controllers
             _context = new ExamContext();
         }
         [HttpGet]
-        public IActionResult GetAll()
+        public IActionResult Get()
         {
-            var reservations = _context.Reservations.Include(x => x.Room).Include(x => x.Client.Company).ToList();
-
-            return Ok(reservations);
+            var reservations = _context.Reservations.Include(x => x.Client.Company).Include(x => x.Room).ToList();
+            return Ok(reservations); 
         }
-        [HttpGet("{id}")]
-        public IActionResult GetById(int id)
-        {
-            var reservation = _context.Reservations.Include(x => x.Room).Include(x => x.Client.Company).FirstOrDefault(x => x.Id == id);
-            if (reservation == null) { return NotFound(); }
 
+        [HttpGet("{id}")]
+        public IActionResult GetReservation(int id)
+        {
+            var reservation = _context.Reservations.Include(x => x.Client.Company).Include(x => x.Room).FirstOrDefault(x=>x.Id == id);
+            if(reservation == null)
+            {
+                return BadRequest();
+            }
             return Ok(reservation);
         }
         [HttpPost]
-        public IActionResult Create(Reservation reservation)
+        public IActionResult CreateReservation(Reservation reservation)
         {
-            if (reservation == null)
-                return BadRequest();
-
-            reservation.AddDate = DateTime.Now;
-            Client client = _context.Clients.Find(reservation.Id);
-            Room room = _context.Rooms.Find(reservation.Id);
-
-            if (room == null || client == null) { return BadRequest(); }
-
-            reservation.Room = room;
-            reservation.Room.Id = room.Id;
-
+            if (DateTime.Parse(reservation.CheckIn) >= DateTime.Parse(reservation.CheckOut))
+            {
+                return BadRequest("Check your Check-In date");
+            }
+            Client client = _context.Clients.FirstOrDefault(x => x.Id == reservation.ClientId);
+            Room room = _context.Rooms.FirstOrDefault(r => r.Id == reservation.RoomId);
+            if (room == null || client == null)
+            {
+                return NotFound("Client or room doesn't exist");
+            }
             reservation.Client = client;
-            reservation.Client.Id = client.Id;
-
-            _context.Reservations.Add(reservation);
+            reservation.Room = room;
+            _context.Add(reservation);
             _context.SaveChanges();
-
-            return StatusCode(StatusCodes.Status201Created, reservation);
+            return Ok();
         }
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, Reservation reservation)
+        [HttpPut]
+        public IActionResult UpdateReservation(Reservation updatedReservation)
         {
-            var existingReservation = _context.Reservations.FirstOrDefault(r => r.Id == id);
+            var GetReservation = _context.Reservations
+                .Include(x => x.Client.Company)
+                .Include(x => x.Room)
+                .FirstOrDefault(x => x.Id == updatedReservation.Id);
 
-            if (existingReservation == null) { return NotFound(); }
+            if (GetReservation == null)
+            {
+                return NotFound(); // Return NotFound if the reservation is not found
+            }
 
-            Client client = _context.Clients.Find(reservation.Client.Id);
-            Room room = _context.Rooms.Find(reservation.Room.Id);
+            // Update properties of the existing reservation with the values from the input reservation
+            GetReservation.CheckIn = updatedReservation.CheckIn;
+            GetReservation.CheckOut = updatedReservation.CheckOut;
+            GetReservation.ClientId = updatedReservation.ClientId;
+            GetReservation.RoomId = updatedReservation.RoomId;
 
-            if (room == null || client == null) { return BadRequest(); }
+            // Check if CheckIn is before CheckOut
+            if (DateTime.Parse(GetReservation.CheckIn) >= DateTime.Parse(GetReservation.CheckOut))
+            {
+                return BadRequest("Check your Check-In date");
+            }
 
-            existingReservation.Room = room;
-            existingReservation.Room.Id = room.Id;
-            existingReservation.Client = client;
-            existingReservation.Client.Id = client.Id;
-
-            existingReservation.CheckIn = reservation.CheckIn;
-            existingReservation.CheckOut = reservation.CheckOut;
-            existingReservation.Room.Id = reservation.Room.Id;
-            existingReservation.Client.Id = reservation.Client.Id;
-
-            _context.Reservations.Update(existingReservation);
+            // Save changes to the database
+            _context.Update(GetReservation);
             _context.SaveChanges();
 
-            return Ok(existingReservation);
+            return Ok();
         }
-
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public IActionResult DeleteReservation(int id)
         {
-            var reservation = _context.Reservations.FirstOrDefault(x => x.Id == id);
-
-            if (reservation == null) { return NotFound(); }
-
-            _context.Reservations.Remove(reservation);
+            var reservation = _context.Reservations
+                .Include(x => x.Client.Company)
+                .Include(x => x.Room)
+                .FirstOrDefault(x => x.Id == id);
+            _context.Remove(reservation);
             _context.SaveChanges();
-
-            return Ok(reservation);
+            return Ok();
         }
+
 
     }
 }

@@ -24,7 +24,7 @@ namespace TechCareerBootcamp_Exam1.Controllers
         [HttpGet("{id}")]
         public IActionResult Get(int id)
         {
-            var Client = _context.Clients.FirstOrDefault(r => r.Id == id);
+            var Client = _context.Clients.Include(x=>x.Company).FirstOrDefault(r => r.Id == id);
             if (Client == null)
             {
                 return NotFound();
